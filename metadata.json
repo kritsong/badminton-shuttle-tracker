@@ -1,0 +1,5 @@
+{
+  "name": "Badminton Shuttle Tracker",
+  "description": "A mobile-first web app to track badminton shuttle usage per game. Features player management, various input methods (manual, auto-select), and session-based cost tracking.",
+  "requestFramePermissions": []
+}
