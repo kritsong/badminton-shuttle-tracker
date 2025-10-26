@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Player, PlayerStatus, View, Level, Gender } from '../types';
+import { Player, PlayerStatus, View, Gender } from '../types';
 import Icon from '../components/Icon';
-import LevelIndicator, { levelMap } from '../components/LevelIndicator';
+import { levelMap } from '../components/LevelIndicator';
 import GameCard from '../components/GameCard';
 import EditGameForm from '../components/EditGameForm';
 
@@ -19,9 +19,9 @@ const PlayerPicker: React.FC<{
     onAddPlayer: (player: Player) => void;
     onRemovePlayer: (player: Player, index: number) => void;
     availablePlayers: Player[];
-    disabled: boolean;
     isEditingActiveSession: boolean;
-}> = ({ selectedPlayers, onAddPlayer, onRemovePlayer, availablePlayers, isEditingActiveSession }) => {
+    gamesPlayedCount: Record<string, number>;
+}> = ({ selectedPlayers, onAddPlayer, onRemovePlayer, availablePlayers, isEditingActiveSession, gamesPlayedCount }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const unselectedPlayers = availablePlayers
@@ -52,7 +52,9 @@ const PlayerPicker: React.FC<{
                                     </span>
                                     <div className="flex-1 overflow-hidden">
                                         <span className="font-bold text-sm truncate block">{player.name}</span>
-                                        <LevelIndicator level={player.level} />
+                                        <span className="text-xs text-gray-400 truncate block">
+                                            เล่น {gamesPlayedCount[player.id] ?? 0} เกม
+                                        </span>
                                     </div>
                                 </button>
                             );
@@ -94,7 +96,9 @@ const PlayerPicker: React.FC<{
                                 </span>
                                 <div className="flex-1 overflow-hidden">
                                     <p className="font-medium truncate text-sm">{player.name}</p>
-                                    <LevelIndicator level={player.level} />
+                                    <p className="text-xs text-gray-400 truncate">
+                                        เล่น {gamesPlayedCount[player.id] ?? 0} เกม
+                                    </p>
                                 </div>
                                 {isPlaying && (
                                     <div className="absolute inset-0 flex items-center justify-center rounded bg-black/20">
@@ -160,6 +164,16 @@ const RecordUseView: React.FC<{ setCurrentView: (view: View) => void }> = () => 
         };
     }, [sessionToView, gameUses]);
 
+    const gamesPlayedCount = useMemo(() => {
+        const tally: Record<string, number> = {};
+        gamesInSession.forEach(game => {
+            game.players.forEach(playerId => {
+                tally[playerId] = (tally[playerId] || 0) + 1;
+            });
+        });
+        return tally;
+    }, [gamesInSession]);
+
     const presentPlayersList = useMemo(() => 
         players.filter(p => p.active && presentPlayerIds.has(p.id)), 
         [players, presentPlayerIds]
@@ -216,11 +230,15 @@ const RecordUseView: React.FC<{ setCurrentView: (view: View) => void }> = () => 
         }
 
         const allPossibleTeams = getCombinations(freePlayers, 4);
-        let bestTeams: { team: Player[], diff: number }[] = [];
-        let minDiffSoFar = Infinity;
+        type TeamScore = {
+            pairing: Player[];
+            diff: number;
+            maxPlayed: number;
+            totalPlayed: number;
+        };
+        const candidateTeams: TeamScore[] = [];
 
         for (const team of allPossibleTeams) {
-            // Fix: Cast `team` to a tuple of Players to ensure correct type inference for destructured player variables.
             const [p1, p2, p3, p4] = team as [Player, Player, Player, Player];
             const l1 = levelMap[p1.level], l2 = levelMap[p2.level], l3 = levelMap[p3.level], l4 = levelMap[p4.level];
             
@@ -233,17 +251,50 @@ const RecordUseView: React.FC<{ setCurrentView: (view: View) => void }> = () => 
             diffs.sort((a, b) => a.diff - b.diff);
             const bestSplit = diffs[0];
 
-            if (bestSplit.diff < minDiffSoFar) {
-                minDiffSoFar = bestSplit.diff;
-                bestTeams = [{ team: bestSplit.pairing, diff: bestSplit.diff }];
-            } else if (bestSplit.diff === minDiffSoFar) {
-                bestTeams.push({ team: bestSplit.pairing, diff: bestSplit.diff });
-            }
+            const counts = bestSplit.pairing.map(player => gamesPlayedCount[player.id] ?? 0);
+            const maxPlayed = counts.length ? Math.max(...counts) : 0;
+            const totalPlayed = counts.reduce((acc, value) => acc + value, 0);
+
+            candidateTeams.push({
+                pairing: bestSplit.pairing,
+                diff: bestSplit.diff,
+                maxPlayed,
+                totalPlayed,
+            });
         }
+
+        let bestTeams: TeamScore[] = [];
+        let bestScore: { maxPlayed: number; totalPlayed: number; diff: number } = {
+            maxPlayed: Infinity,
+            totalPlayed: Infinity,
+            diff: Infinity,
+        };
+
+        candidateTeams.forEach(team => {
+            const isBetter =
+                team.maxPlayed < bestScore.maxPlayed ||
+                (team.maxPlayed === bestScore.maxPlayed && team.totalPlayed < bestScore.totalPlayed) ||
+                (team.maxPlayed === bestScore.maxPlayed && team.totalPlayed === bestScore.totalPlayed && team.diff < bestScore.diff);
+
+            if (isBetter) {
+                bestScore = { maxPlayed: team.maxPlayed, totalPlayed: team.totalPlayed, diff: team.diff };
+                bestTeams = [team];
+                return;
+            }
+
+            const isEqual =
+                team.maxPlayed === bestScore.maxPlayed &&
+                team.totalPlayed === bestScore.totalPlayed &&
+                team.diff === bestScore.diff;
+
+            if (isEqual) {
+                bestTeams.push(team);
+            }
+        });
 
         if (bestTeams.length > 0) {
             const chosenTeam = bestTeams[Math.floor(Math.random() * bestTeams.length)];
-            setSelectedPlayers(chosenTeam.team);
+            setSelectedPlayers(chosenTeam.pairing);
         } else {
             const team = [...freePlayers].sort(() => 0.5 - Math.random()).slice(0, 4);
             setSelectedPlayers([...team, ...Array(4 - team.length).fill(null)]);
@@ -332,8 +383,8 @@ const RecordUseView: React.FC<{ setCurrentView: (view: View) => void }> = () => 
                     onAddPlayer={handleAddPlayer} 
                     onRemovePlayer={handleRemovePlayer} 
                     availablePlayers={presentPlayersList} 
-                    disabled={finalSelectedPlayers.length >= 4} 
                     isEditingActiveSession={!!activeSession && activeSession.id === sessionToView.id}
+                    gamesPlayedCount={gamesPlayedCount}
                 />
 
                 {freePlayers.length < 4 && finalSelectedPlayers.length < 4 && (

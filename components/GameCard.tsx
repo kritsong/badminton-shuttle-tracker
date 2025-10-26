@@ -2,7 +2,6 @@ import React from 'react';
 import { GameUse, Gender } from '../types';
 import { useAppContext } from '../context/AppContext';
 import Icon from './Icon';
-import LevelIndicator from './LevelIndicator';
 
 const getGenderIcon = (gender: Gender) => {
     switch (gender) {
@@ -18,51 +17,43 @@ const GameCard: React.FC<{
 }> = ({ game, onEdit }) => {
     const { getPlayerById, endGameUse } = useAppContext();
     return (
-         <div key={game.id} className="bg-gray-800 p-3 rounded-lg space-y-2">
-            <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                    <h3 className="font-bold text-lg text-cyan-400">เกมที่ {game.shuttleSessionId}</h3>
-                     <div className="flex items-center gap-1 text-sm text-gray-300 bg-gray-700 px-2 py-1 rounded-full">
-                        <Icon.Shuttle className="w-4 h-4" />
-                        <span>x {game.shuttlesUsed || 1}</span>
-                    </div>
+         <div key={game.id} className="bg-gray-800 px-3 py-2 rounded-lg space-y-2">
+            <div className="flex justify-between items-center gap-3 text-xs sm:text-sm">
+                <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-semibold text-cyan-400 whitespace-nowrap">เกม {game.shuttleSessionId}</span>
+                    <span className="flex items-center gap-1 whitespace-nowrap bg-gray-700/60 px-2 py-0.5 rounded-full text-gray-200">
+                        <Icon.Shuttle className="w-3.5 h-3.5" />
+                        x {game.shuttlesUsed || 1}
+                    </span>
+                    <span className="text-gray-400 truncate">
+                        {game.players.map((playerId, index) => {
+                            const player = getPlayerById(playerId);
+                            if (!player) return 'Unknown';
+                            const prefix = index === 2 ? ' | ' : index === 0 || index === 2 ? '' : ', ';
+                            const marker = index === 2 ? 'vs ' : '';
+                            return `${prefix}${marker}${player.name}`;
+                        }).join('')}
+                    </span>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">{new Date(game.timestamp).toLocaleTimeString('th-TH')}</span>
-                    {onEdit && <button onClick={() => onEdit(game)} className="text-gray-400 hover:text-white"><Icon.Edit className="w-5 h-5"/></button>}
+                <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+                    {!game.isActive && (
+                        <span className="text-green-400 font-semibold">จบแล้ว</span>
+                    )}
+                    <span className="text-gray-500">{new Date(game.timestamp).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
+                    {onEdit && (
+                        <button onClick={() => onEdit(game)} className="text-gray-400 hover:text-white">
+                            <Icon.Edit className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 text-sm">
-                {game.players.map(playerId => {
-                    const player = getPlayerById(playerId);
-                    if (!player) return <div key={playerId} className="bg-gray-700/50 p-1.5 rounded">Unknown Player</div>;
-                    
-                    const teamClass = game.players.indexOf(playerId) < 2 ? 'bg-red-900/30' : 'bg-blue-900/30';
-
-                    return (
-                        <div key={playerId} className={`flex items-center gap-2 p-1.5 rounded ${teamClass}`}>
-                            <span className={player.gender === Gender.Male ? 'text-blue-400' : player.gender === Gender.Female ? 'text-pink-400' : 'text-gray-400'}>
-                                {getGenderIcon(player.gender)}
-                            </span>
-                            <div className="flex-1 overflow-hidden">
-                                <p className="truncate font-semibold text-sm">{player.name}</p>
-                                <LevelIndicator level={player.level} />
-                            </div>
-                        </div>
-                    )
-                })}
-            </div>
-            {game.isActive ? (
+            {game.isActive && (
                 <button
                     onClick={() => endGameUse(game.id)}
-                    className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded transition-colors"
+                    className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-1.5 rounded transition-colors text-sm"
                 >
                     จบเกม
                 </button>
-            ) : (
-                <div className="text-center text-sm text-green-400 p-2 bg-green-900/30 rounded-md font-semibold">
-                    จบแล้ว
-                </div>
             )}
         </div>
     );

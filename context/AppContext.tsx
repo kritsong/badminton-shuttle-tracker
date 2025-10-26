@@ -1,40 +1,10 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo, useRef } from 'react';
 import { Player, GameUse, Session, Settings, Gender, Level, PlayerStatus, PendingGameUse, AppContextType } from '../types';
+import { SheetsAPI, isSheetsConfigured } from '../src/services/sheets';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const initialPlayers: Player[] = [
-  { id: '1', name: 'Anna Chen', gender: Gender.Female, level: Level.Advanced, active: true, status: PlayerStatus.Free, visitCount: 15, shuttleCount: 19 },
-  { id: '2', name: 'Bee', gender: Gender.Female, level: Level.Intermediate, active: true, status: PlayerStatus.Free, visitCount: 25, shuttleCount: 31 },
-  { id: '3', name: 'Dom', gender: Gender.Male, level: Level.Advanced, active: true, status: PlayerStatus.Free, visitCount: 22, shuttleCount: 28 },
-  { id: '4', name: 'Keng', gender: Gender.Male, level: Level.Intermediate, active: true, status: PlayerStatus.Free, visitCount: 18, shuttleCount: 23 },
-  { id: '5', name: 'Pak', gender: Gender.Male, level: Level.Beginner, active: true, status: PlayerStatus.Free, visitCount: 5, shuttleCount: 6 },
-  { id: '6', name: 'Mint', gender: Gender.Female, level: Level.Pro, active: true, status: PlayerStatus.Free, visitCount: 30, shuttleCount: 38 },
-  { id: '7', name: 'Art', gender: Gender.Male, level: Level.Pro, active: true, status: PlayerStatus.Free, visitCount: 45, shuttleCount: 56 },
-  { id: '8', name: 'Cherry', gender: Gender.Female, level: Level.Intermediate, active: true, status: PlayerStatus.Free, visitCount: 12, shuttleCount: 15 },
-  { id: '9', name: 'Golf', gender: Gender.Male, level: Level.Advanced, active: true, status: PlayerStatus.Free, visitCount: 33, shuttleCount: 41 },
-  { id: '10', name: 'Fah', gender: Gender.Female, level: Level.Expert, active: true, status: PlayerStatus.Free, visitCount: 28, shuttleCount: 35 },
-  { id: '11', name: 'Ice', gender: Gender.Male, level: Level.Beginner, active: true, status: PlayerStatus.Free, visitCount: 3, shuttleCount: 4 },
-  { id: '12', name: 'Jane', gender: Gender.Female, level: Level.Novice, active: true, status: PlayerStatus.Free, visitCount: 8, shuttleCount: 10 },
-  { id: '13', name: 'Lek', gender: Gender.Male, level: Level.Intermediate, active: true, status: PlayerStatus.Free, visitCount: 19, shuttleCount: 24 },
-  { id: '14', name: 'Mew', gender: Gender.Female, level: Level.Advanced, active: true, status: PlayerStatus.Free, visitCount: 21, shuttleCount: 26 },
-  { id: '15', name: 'Noom', gender: Gender.Male, level: Level.Expert, active: true, status: PlayerStatus.Free, visitCount: 35, shuttleCount: 44 },
-  { id: '16', name: 'Opal', gender: Gender.Female, level: Level.Beginner, active: true, status: PlayerStatus.Free, visitCount: 2, shuttleCount: 3 },
-  { id: '17', name: 'Poom', gender: Gender.Male, level: Level.Pro, active: true, status: PlayerStatus.Free, visitCount: 50, shuttleCount: 63 },
-  { id: '18', name: 'Queen', gender: Gender.Female, level: Level.Intermediate, active: true, status: PlayerStatus.Free, visitCount: 14, shuttleCount: 18 },
-  { id: '19', name: 'Rit', gender: Gender.Male, level: Level.Novice, active: true, status: PlayerStatus.Free, visitCount: 9, shuttleCount: 11 },
-  { id: '20', name: 'Som', gender: Gender.Female, level: Level.Advanced, active: true, status: PlayerStatus.Free, visitCount: 24, shuttleCount: 30 },
-  { id: '21', name: 'Ton', gender: Gender.Male, level: Level.Intermediate, active: true, status: PlayerStatus.Free, visitCount: 17, shuttleCount: 21 },
-  { id: '22', name: 'Un', gender: Gender.Female, level: Level.Expert, active: true, status: PlayerStatus.Free, visitCount: 29, shuttleCount: 36 },
-  { id: '23', name: 'Vee', gender: Gender.Male, level: Level.Beginner, active: true, status: PlayerStatus.Free, visitCount: 6, shuttleCount: 8 },
-  { id: '24', name: 'Wan', gender: Gender.Female, level: Level.Pro, active: true, status: PlayerStatus.Free, visitCount: 40, shuttleCount: 50 },
-  { id: '25', name: 'X', gender: Gender.Male, level: Level.Advanced, active: true, status: PlayerStatus.Free, visitCount: 26, shuttleCount: 33 },
-  { id: '26', name: 'Ying', gender: Gender.Female, level: Level.Intermediate, active: true, status: PlayerStatus.Free, visitCount: 11, shuttleCount: 14 },
-  { id: '27', name: 'Zen', gender: Gender.Male, level: Level.Novice, active: true, status: PlayerStatus.Free, visitCount: 7, shuttleCount: 9 },
-  { id: '28', name: 'Aom', gender: Gender.Female, level: Level.Advanced, active: true, status: PlayerStatus.Free, visitCount: 23, shuttleCount: 29 },
-  { id: '29', name: 'Boy', gender: Gender.Male, level: Level.Expert, active: true, status: PlayerStatus.Free, visitCount: 31, shuttleCount: 39 },
-  { id: '30', name: 'Cake', gender: Gender.Female, level: Level.Beginner, active: true, status: PlayerStatus.Free, visitCount: 4, shuttleCount: 5 },
-];
+const initialPlayers: Player[] = [];
 
 const initialSettings: Settings = {
     currency: 'THB',
@@ -62,6 +32,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [pendingGameUse, setPendingGameUse] = useState<PendingGameUse | null>(null);
   const [presentPlayerIds, setPresentPlayerIds] = useState<Set<string>>(new Set());
   const [viewedSessionId, setViewedSessionId] = useState<string | null>(null);
+  const [sheetsStatus, setSheetsStatus] = useState<'disabled' | 'loading' | 'ready'>(isSheetsConfigured ? 'loading' : 'disabled');
+  const skipSheetsSyncRef = useRef(!isSheetsConfigured);
 
   useEffect(() => { localStorage.setItem('badminton_players', JSON.stringify(players)); }, [players]);
   useEffect(() => { localStorage.setItem('badminton_gameUses', JSON.stringify(gameUses)); }, [gameUses]);
@@ -81,6 +53,75 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setPresentPlayerIds(new Set());
     }
   }, [viewedSessionId, sessions, activeSession]);
+
+  useEffect(() => {
+    if (!isSheetsConfigured) return;
+    let cancelled = false;
+
+    skipSheetsSyncRef.current = true;
+    setSheetsStatus('loading');
+
+    (async () => {
+      try {
+        const [remotePlayers, remoteSessions, remoteGameUses, remoteSettings] = await Promise.all([
+          SheetsAPI.getPlayers(),
+          SheetsAPI.getSessions(),
+          SheetsAPI.getGameUses(),
+          SheetsAPI.getSettings(),
+        ]);
+
+        if (cancelled) return;
+
+        const hasRemoteData = remotePlayers.length > 0 || remoteSessions.length > 0 || remoteGameUses.length > 0;
+        if (hasRemoteData) {
+          setPlayers(remotePlayers);
+          setSessions(remoteSessions);
+          setGameUses(remoteGameUses);
+        }
+
+        if (remoteSettings) {
+          setSettings(prev => ({ ...prev, ...remoteSettings }));
+        }
+      } catch (error) {
+        console.error('Failed to load data from Google Sheets', error);
+      } finally {
+        if (!cancelled) {
+          skipSheetsSyncRef.current = false;
+          setSheetsStatus('ready');
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!isSheetsConfigured || sheetsStatus !== 'ready' || skipSheetsSyncRef.current) return;
+    const now = new Date().toISOString();
+    SheetsAPI.upsertPlayers(players.map(player => ({ ...player, updatedAt: now })))
+      .catch(error => console.error('Failed to sync players to Google Sheets', error));
+  }, [players, sheetsStatus]);
+
+  useEffect(() => {
+    if (!isSheetsConfigured || sheetsStatus !== 'ready' || skipSheetsSyncRef.current) return;
+    const now = new Date().toISOString();
+    SheetsAPI.upsertSessions(sessions.map(session => ({ ...session, updatedAt: now })))
+      .catch(error => console.error('Failed to sync sessions to Google Sheets', error));
+  }, [sessions, sheetsStatus]);
+
+  useEffect(() => {
+    if (!isSheetsConfigured || sheetsStatus !== 'ready' || skipSheetsSyncRef.current) return;
+    const now = new Date().toISOString();
+    SheetsAPI.upsertGameUses(gameUses.map(game => ({ ...game, updatedAt: now })))
+      .catch(error => console.error('Failed to sync game uses to Google Sheets', error));
+  }, [gameUses, sheetsStatus]);
+
+  useEffect(() => {
+    if (!isSheetsConfigured || sheetsStatus !== 'ready' || skipSheetsSyncRef.current) return;
+    const now = new Date().toISOString();
+    SheetsAPI.upsertSettings({ ...settings, updatedAt: now })
+      .catch(error => console.error('Failed to sync settings to Google Sheets', error));
+  }, [settings, sheetsStatus]);
 
 
   const getPlayerById = (id: string) => players.find(p => p.id === id);

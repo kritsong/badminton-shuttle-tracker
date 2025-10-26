@@ -56,6 +56,8 @@ const PlayerForm: React.FC<{ onSave: (player: Omit<Player, 'id' | 'active' | 'st
 
 const PlayerCard: React.FC<{ player: Player; isPresent: boolean; onEdit: () => void; canToggle: boolean; }> = ({ player, isPresent, onEdit, canToggle }) => {
     const { togglePresentPlayer } = useAppContext();
+    const isPlaying = player.status === PlayerStatus.Playing;
+    const isToggleEnabled = canToggle && !isPlaying;
 
     const getGenderStyle = (gender: Gender) => {
         switch (gender) {
@@ -67,22 +69,24 @@ const PlayerCard: React.FC<{ player: Player; isPresent: boolean; onEdit: () => v
 
     return (
         <div 
-            onClick={() => canToggle && togglePresentPlayer(player.id)}
-            className={`bg-gray-800 p-3 rounded-lg flex items-center transition-all border-2 ${isPresent ? 'border-cyan-500' : 'border-transparent'} ${!canToggle ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-700 cursor-pointer'}`}
-            aria-disabled={!canToggle}
+            onClick={() => isToggleEnabled && togglePresentPlayer(player.id)}
+            className={`bg-gray-800 px-3 py-2 rounded-lg flex items-center transition-all border ${isPresent ? 'border-cyan-500/70' : 'border-transparent'} ${!isToggleEnabled ? `cursor-not-allowed ${isPresent ? '' : 'opacity-60'}` : 'hover:bg-gray-700 cursor-pointer'}`}
+            aria-disabled={!isToggleEnabled}
             role="button"
-            tabIndex={canToggle ? 0 : -1}
+            tabIndex={isToggleEnabled ? 0 : -1}
         >
-            <div className="flex-1 flex items-center gap-3">
+            <div className="flex-1 flex items-center gap-2 min-w-0">
                 <span className={getGenderStyle(player.gender).color}>
-                    {React.cloneElement(getGenderStyle(player.gender).icon, { className: 'w-6 h-6' })}
+                    {React.cloneElement(getGenderStyle(player.gender).icon, { className: 'w-4 h-4 sm:w-5 sm:h-5' })}
                 </span>
-                <div>
-                    <p className="font-bold text-lg flex items-center gap-2">
-                        {player.name}
-                        {player.status === PlayerStatus.Playing && <span className="text-xs bg-red-500 px-2 py-1 rounded-full">กำลังเล่น</span>}
+                <div className="min-w-0">
+                    <p className="font-semibold text-sm sm:text-base flex items-center gap-2 truncate">
+                        <span className="truncate">{player.name}</span>
+                        {player.status === PlayerStatus.Playing && <span className="text-[10px] sm:text-xs bg-red-500/80 px-2 py-0.5 rounded-full text-white uppercase tracking-wide">IN COURT</span>}
                     </p>
-                    <p className="text-sm text-gray-400">มาแล้ว {player.visitCount || 0} ครั้ง • ใช้ไป {Math.round(player.shuttleCount || 0)} ลูก</p>
+                    <p className="text-xs text-gray-400 truncate">
+                        มา {player.visitCount || 0} • ลูก {Math.round(player.shuttleCount || 0)}
+                    </p>
                 </div>
             </div>
             <div className="flex items-center gap-3">
@@ -93,8 +97,8 @@ const PlayerCard: React.FC<{ player: Player; isPresent: boolean; onEdit: () => v
                 >
                     <Icon.Edit className="w-5 h-5" />
                 </button>
-                 <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${isPresent ? 'bg-cyan-500' : 'bg-gray-600 border border-gray-500'}`}>
-                    {isPresent && <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                 <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center transition-colors ${isPresent ? 'bg-cyan-500' : 'bg-gray-600 border border-gray-500/60'}`}>
+                    {isPresent && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                 </div>
             </div>
         </div>
@@ -122,6 +126,9 @@ const PlayersView: React.FC = () => {
             .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
         const sorter = (a: Player, b: Player) => {
+            const aPlaying = a.status === PlayerStatus.Playing ? 0 : 1;
+            const bPlaying = b.status === PlayerStatus.Playing ? 0 : 1;
+            if (aPlaying !== bPlaying) return aPlaying - bPlaying;
             if (sortBy === 'frequency') {
                 return (b.visitCount || 0) - (a.visitCount || 0);
             }
@@ -163,7 +170,7 @@ const PlayersView: React.FC = () => {
             
             {showAddForm && <PlayerForm onSave={handleSavePlayer} onCancel={() => setShowAddForm(false)} />}
 
-            <div className="p-4 bg-gray-800 rounded-lg space-y-4">
+            <div className="p-3 bg-gray-800 rounded-lg space-y-3">
                  <input
                     type="text"
                     placeholder="ค้นหาผู้เล่น..."
@@ -177,13 +184,18 @@ const PlayersView: React.FC = () => {
                 </div>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
                 {presentPlayers.length > 0 && (
-                    <div className="space-y-3">
-                        <h2 className="font-semibold text-lg text-cyan-400">ผู้เล่นในเซสชั่น ({presentPlayers.length})</h2>
+                    <div className="space-y-2">
+                        <h2 className="font-semibold text-sm uppercase text-cyan-400 tracking-wide">ผู้เล่นในเซสชั่น ({presentPlayers.length})</h2>
                         {presentPlayers.map(player => (
                              <div key={player.id}>
-                                <PlayerCard player={player} isPresent={true} onEdit={() => handleEditClick(player)} canToggle={!!sessionToView} />
+                                <PlayerCard 
+                                    player={player} 
+                                    isPresent={true} 
+                                    onEdit={() => handleEditClick(player)} 
+                                    canToggle={!!sessionToView} 
+                                />
                                 {editingPlayerId === player.id && (
                                     <div className="pt-1">
                                         <PlayerForm 
@@ -199,19 +211,24 @@ const PlayersView: React.FC = () => {
                 )}
 
                 {presentPlayers.length > 0 && absentPlayers.length > 0 && (
-                    <div className="relative flex items-center py-2">
-                        <div className="flex-grow border-t border-gray-700"></div>
-                        <span className="flex-shrink mx-4 text-gray-500 text-sm">ผู้เล่นทั้งหมด</span>
-                        <div className="flex-grow border-t border-gray-700"></div>
+                    <div className="relative flex items-center py-1">
+                        <div className="flex-grow border-t border-gray-700/70"></div>
+                        <span className="flex-shrink mx-3 text-gray-500 text-xs uppercase tracking-wide">ผู้เล่นทั้งหมด</span>
+                        <div className="flex-grow border-t border-gray-700/70"></div>
                     </div>
                 )}
 
                 {absentPlayers.length > 0 && (
-                     <div className="space-y-3">
-                        {presentPlayers.length === 0 && <h2 className="font-semibold text-lg text-gray-300">ผู้เล่นทั้งหมด ({absentPlayers.length})</h2>}
+                     <div className="space-y-2">
+                        {presentPlayers.length === 0 && <h2 className="font-semibold text-sm uppercase text-gray-300 tracking-wide">ผู้เล่นทั้งหมด ({absentPlayers.length})</h2>}
                         {absentPlayers.map(player => (
                            <div key={player.id}>
-                                <PlayerCard player={player} isPresent={false} onEdit={() => handleEditClick(player)} canToggle={!!sessionToView} />
+                                <PlayerCard 
+                                    player={player} 
+                                    isPresent={false} 
+                                    onEdit={() => handleEditClick(player)} 
+                                    canToggle={!!sessionToView} 
+                                />
                                 {editingPlayerId === player.id && (
                                      <div className="pt-1">
                                         <PlayerForm 

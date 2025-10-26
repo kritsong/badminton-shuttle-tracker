@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Player, GameUse, Gender, Level, PlayerStatus } from '../types';
+import { Player, GameUse, Gender, PlayerStatus } from '../types';
 import Icon from './Icon';
-import LevelIndicator from './LevelIndicator';
 
 const getGenderIcon = (gender: Gender) => {
     switch (gender) {
@@ -49,10 +48,7 @@ const PlayerPicker: React.FC<{
                                     <span className={player.gender === Gender.Male ? 'text-blue-400' : player.gender === Gender.Female ? 'text-pink-400' : 'text-gray-400'}>
                                         {getGenderIcon(player.gender)}
                                     </span>
-                                    <div className="flex-1 overflow-hidden">
-                                        <span className="font-bold text-sm truncate block">{player.name}</span>
-                                        <LevelIndicator level={player.level} />
-                                    </div>
+                                    <span className="flex-1 truncate font-bold text-sm">{player.name}</span>
                                 </button>
                             );
                         }
@@ -92,8 +88,7 @@ const PlayerPicker: React.FC<{
                                     {getGenderIcon(player.gender)}
                                 </span>
                                 <div className="flex-1 overflow-hidden">
-                                     <p className="font-medium truncate text-sm">{player.name}</p>
-                                    <LevelIndicator level={player.level} />
+                                    <p className="font-medium truncate text-sm">{player.name}</p>
                                 </div>
                                 {isPlaying && (
                                     <div className={`absolute inset-0 flex items-center justify-center rounded ${!allowPlayingPlayers ? 'bg-black/20' : ''}`}>

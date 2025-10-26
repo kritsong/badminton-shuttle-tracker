@@ -16,5 +16,11 @@ View your app in AI Studio: https://ai.studio/apps/drive/1e48GUTKaaJzo_eYL759pc2
 1. Install dependencies:
    `npm install`
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+3. (Optional) Enable Google Sheets sync by adding the following to `.env.local`:
+   ```
+   VITE_SHEETS_URL=https://script.google.com/macros/s/AKfycbzoVzcksgUc7mh8JDOxppmreaMXl5snvKHgIzQRFXuqshn25emfLKrz62Bv2ieuRwKx-Q/exec
+   # VITE_SHEETS_SECRET=your-shared-secret (if your Apps Script expects one)
+   # VITE_RECAPTCHA_SITE_KEY=your-site-key (if using reCAPTCHA)
+   ```
+4. Run the app:
    `npm run dev`
