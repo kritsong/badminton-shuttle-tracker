@@ -26,7 +26,6 @@ jobs:
         env:
           VITE_SHEETS_URL: ${{ secrets.VITE_SHEETS_URL }}
           VITE_SHEETS_SECRET: ${{ secrets.VITE_SHEETS_SECRET }}
-          VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
