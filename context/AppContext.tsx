@@ -176,11 +176,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const isForActiveSession = activeSession && activeSession.id === viewedSessionId;
 
-    if (isForActiveSession && gamePlayers.some(p => p.status === PlayerStatus.Playing)) {
-        alert("ผู้เล่นบางคนกำลังเล่นอยู่");
-        return false;
-    }
-
     const maleCount = gamePlayers.filter(p => p.gender === Gender.Male).length;
     const femaleCount = gamePlayers.filter(p => p.gender === Gender.Female).length;
     

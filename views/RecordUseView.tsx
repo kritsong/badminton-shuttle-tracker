@@ -81,15 +81,26 @@ const PlayerPicker: React.FC<{
                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-1 bg-gray-900 rounded">
                     {unselectedPlayers.map(player => {
                         const isPlaying = player.status === PlayerStatus.Playing && isEditingActiveSession;
-                        const isDisabled = selectedPlayers.filter(p=>p).length >= 4 || isPlaying;
+                        const selectedCount = selectedPlayers.filter(p => p).length;
+                        const isSelectionFull = selectedCount >= 4;
+                        const buttonStateClass = isSelectionFull
+                            ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                            : isPlaying
+                                ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 cursor-pointer'
+                                : 'bg-gray-700 hover:bg-gray-600 cursor-pointer';
+
+                        const handleClick = () => {
+                            if (isSelectionFull) return;
+                            onAddPlayer(player);
+                        };
 
                         return (
                             <button
                                 key={player.id}
                                 type="button"
-                                onClick={() => onAddPlayer(player)}
-                                disabled={isDisabled}
-                                className={`p-2 rounded text-left transition-colors relative flex items-center gap-2 ${isDisabled ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                onClick={handleClick}
+                                disabled={isSelectionFull}
+                                className={`p-2 rounded text-left transition-colors relative flex items-center gap-2 ${buttonStateClass}`}
                             >
                                 <span className={`mt-0.5 ${player.gender === Gender.Male ? 'text-blue-400' : player.gender === Gender.Female ? 'text-pink-400' : 'text-gray-400'}`}>
                                     {getGenderIcon(player.gender)}
@@ -101,7 +112,7 @@ const PlayerPicker: React.FC<{
                                     </p>
                                 </div>
                                 {isPlaying && (
-                                    <div className="absolute inset-0 flex items-center justify-center rounded bg-black/20">
+                                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded bg-black/20">
                                         <span className="text-xs bg-red-500/90 text-white px-2 py-1 rounded-full font-bold tracking-wide">IN COURT</span>
                                     </div>
                                 )}
@@ -148,6 +159,17 @@ const RecordUseView: React.FC<{ setCurrentView: (view: View) => void }> = () => 
         }
         return [];
     }, [sessionToView, gameUses]);
+
+    const paidPlayerIds = useMemo<Set<string>>(() => {
+        if (!sessionToView) {
+            return new Set();
+        }
+        return new Set(
+            Object.entries(sessionToView.paymentStatus || {})
+                .filter(([, hasPaid]) => hasPaid)
+                .map(([playerId]) => playerId)
+        );
+    }, [sessionToView]);
     
     const { activeGames, finishedGames } = useMemo(() => {
         if (!sessionToView) return { activeGames: [], finishedGames: [] };
@@ -175,8 +197,8 @@ const RecordUseView: React.FC<{ setCurrentView: (view: View) => void }> = () => 
     }, [gamesInSession]);
 
     const presentPlayersList = useMemo(() => 
-        players.filter(p => p.active && presentPlayerIds.has(p.id)), 
-        [players, presentPlayerIds]
+        players.filter(p => p.active && presentPlayerIds.has(p.id) && !paidPlayerIds.has(p.id)), 
+        [players, presentPlayerIds, paidPlayerIds]
     );
 
     const freePlayers = useMemo(() => {
@@ -192,6 +214,11 @@ const RecordUseView: React.FC<{ setCurrentView: (view: View) => void }> = () => 
             setPendingGameUse(null);
         }
     }, [pendingGameUse, setPendingGameUse]);
+
+    useEffect(() => {
+        if (paidPlayerIds.size === 0) return;
+        setSelectedPlayers(prev => prev.map(player => (player && paidPlayerIds.has(player.id) ? null : player)));
+    }, [paidPlayerIds]);
 
     useEffect(() => {
         const nextId = gamesInSession.length > 0
